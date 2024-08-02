@@ -1,29 +1,83 @@
-def simple_chatbot(user_query):
-    """
-    A simple chatbot that responds to predefined financial queries with canned responses.
-    """
-    response = ""
-    user_query = user_query.lower()
+import warnings
+import pandas as pd
 
-    if "total revenue" in user_query:
-        response = "The average total revenue across the companies and fiscal years analyzed is approximately $212,357.78 million."
-    elif "net income changed" in user_query or "net income growth" in user_query:
-        response = "In the last year analyzed, net income growth showed variability: Microsoft had a slight increase, whereas Apple and Tesla saw decreases."
-    elif "total assets" in user_query:
-        response = "The average total assets across the companies for the analyzed period are about $265,080.67 million."
-    elif "cash flow from operating activities" in user_query:
-        response = "Cash flow from operating activities varied, with an average across companies and fiscal years at approximately $67,444 million."
+
+warnings.filterwarnings('ignore')
+
+
+df = pd.read_csv('/Users/sarthak.saharan/Documents/BCG Project/Final.csv')
+
+df = df.dropna()
+
+df['Revenue Growth (%)'] = df.groupby(['Company'])['Total Revenue'].pct_change() * 100
+df['Net Income Growth (%)'] = df.groupby(['Company'])['Net Income'].pct_change() * 100
+
+df['Profit Margin'] = df['Net Income'] / df['Total Revenue']
+
+df['Debt-to-Equity Ratio'] = df['Total Liabilities'] / (df['Total Assets'] - df['Total Liabilities'])
+
+financial_data = df.to_dict('list')
+
+def respond_to_query(query):
+
+    if extract_company(query) is None:
+        return f"Please mention Company name"
+
+    if extract_year(query) is None:
+        return f"Please mention year"
+        
+    if "total revenue" in query:
+        company = extract_company(query)
+        year = extract_year(query)
+        revenue = query_total_revenue(company, year)
+        return f"The total revenue for {company} in {year} was {revenue}."
+    
+    elif "net income" in query:
+        company = extract_company(query)
+        year = extract_year(query)
+        net_income = query_net_income(company, year)
+        return f"The net income for {company} in {year} was {net_income}."
+    
+    elif "trend of net income" in query:
+        company = extract_company(query)
+        year = extract_year(query)
+        trend_data = query_net_income_trend(company,year)
+        return f"The trend of net income for {company} over the years is as follows: {trend_data}"
+    
+    elif "profitability metrics" in query:
+        company = extract_company(query)
+        year = extract_year(query)
+        profitability_metrics = query_profitability_metrics(company,year)
+        return f"The profitability metrics for {company} are as follows: {profitability_metrics}"
+    
     else:
-        response = "Sorry, I can only provide information on predefined queries. Please ask about total revenue, net income changes, total assets, or cash flow from operating activities."
+        return "Sorry, I couldn't understand your query."
 
-    return response
+def extract_company(query):
+    company_names = ['Microsoft', 'Apple', 'Tesla']
+    for company in company_names:
+        if company.lower() in query.lower():
+            return company
 
+def extract_year(query):
+    years = ['F21', 'F22', 'F23']
+    for year in years:
+        if year in query:
+            return year
 
-# Example usage
-if __name__ == "__main__":
-    while True:
-        user_input = input("Ask a financial query (type 'exit' to stop): ")
-        if user_input.lower() == 'exit':
-            print("Exiting chatbot. Goodbye!")
-            break
-        print(simple_chatbot(user_input))
+# Example querying functions
+def query_total_revenue(company, year):
+    return df[(df['Company'] == company )&(df['Year'] == year)]['Total Revenue'].values[0] 
+
+def query_net_income(company, year):
+    return df[(df['Company'] == company )&(df['Year'] == year)]['Net Income'].values[0]
+
+def query_net_income_trend(company,year):
+    return df[(df['Company'] == company )&(df['Year'] == year)]['Net Income Growth (%)'].values[0]
+
+def query_profitability_metrics(company,year):
+    return df[(df['Company'] == company )&(df['Year'] == year)]['Profit Margin'].values[0]
+
+user_query = input("Please enter your query: ")
+response = respond_to_query(user_query)
+print(response)
